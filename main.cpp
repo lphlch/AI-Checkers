@@ -4,7 +4,7 @@
  Copyright from "YOUR CODE BEGIN" to "YOUR CODE END" is belong to LPH.
  The other part is belong to its owner.(https://github.com/sse2018-makyek-fun/std-client)
 
- Copyright © 2021 LPH, All rights reserved.
+ Copyright © 2021 LPH.
 ************************************************************************************************/
 // Scanf safe
 #define _CRT_SECURE_NO_WARNINGS
