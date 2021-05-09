@@ -1,13 +1,14 @@
 # AI-Checkers
 AI Checkers for class project.  
-AIÌøÆå ¿Î³ÌÏîÄ¿
+AIè·³æ£‹ è¯¾ç¨‹é¡¹ç›®
 
 # Version
-* 0.1.0.20210509A »ù´¡¿ò¼Ü£¬»ùÓÚBaseline£¬ÍêÉÆAI£¬ÏÖÔÚAIÖªµÀ×Ô¼ºÓ¦¸Ã×ßÄÄ¸ö×ÓÁË¡£Bug£ºAIÖ»ÓÐÔÚ°××ÓÊ±»á³Ôµ½ºÚ×Ó£¬ºÚ×ÓÊ±»á³Ô¶ÓÓÑ¡£
+* 0.1.0.20210509A åŸºç¡€æ¡†æž¶ï¼ŒåŸºäºŽBaselineï¼Œå®Œå–„AIï¼ŒçŽ°åœ¨AIçŸ¥é“è‡ªå·±åº”è¯¥èµ°å“ªä¸ªå­äº†ã€‚Bugï¼šAIåªæœ‰åœ¨ç™½å­æ—¶ä¼šåƒåˆ°é»‘å­ï¼Œé»‘å­æ—¶ä¼šåƒé˜Ÿå‹ã€‚
 
 # License
 This project is open source with Apache-2.0 License, for more detail, please view LICENSE file.  
-±¾ÏîÄ¿¿ªÔ´Ð­ÒéÎªApache-2.0£¬¸ü¶àÏ¸½ÚÇë²éÔÄLICENSEÎÄ¼þ.  
+æœ¬é¡¹ç›®å¼€æºåè®®ä¸ºApache-2.0ï¼Œæ›´å¤šç»†èŠ‚è¯·æŸ¥é˜…LICENSEæ–‡ä»¶.  
 **Copyright (c) 2021 LPH**  
-**°æÈ¨ËùÓÐ 2021 LPH**
+**ç‰ˆæƒæ‰€æœ‰ 2021 LPH**  
 
+![lphlch](https://github.com/lphlch/AI-Checkers/blob/main/lphlch.png)
