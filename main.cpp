@@ -1,8 +1,7 @@
 ﻿/************************************************************************************************
  The project is about AI checkers.
 
- Copyright from "YOUR CODE BEGIN" to "YOUR CODE END" is belong to LPH.
- The other part is belong to its owner.(https://github.com/sse2018-makyek-fun/std-client)
+ The code is based on "baseline"(https://github.com/sse2018-makyek-fun/std-client)
 
  Copyright © 2021 LPH.
 ************************************************************************************************/
@@ -12,10 +11,10 @@
 // board information
 #define BOARD_SIZE 8
 #define EMPTY 0
-#define MY_FLAG 2
-#define MY_KING 4
-#define ENEMY_FLAG 1
-#define ENEMY_KING 3
+#define WHITE_FLAG 2
+#define WHITE_KING 4
+#define BLACK_FLAG 1
+#define BLACK_KING 3
 
 #define MAX_STEP 15
 
@@ -41,6 +40,7 @@ int myFlag;
 int moveDir[4][2] = { {1, -1}, {1, 1}, {-1, -1}, {-1, 1} };
 int jumpDir[4][2] = { {2, -2}, {2, 2}, {-2, -2}, {-2, 2} };
 int numMyFlag;
+int me;
 struct Command moveCmd = { {0},{0},2 };
 struct Command jumpCmd = { {0}, {0},  0 };
 struct Command longestJumpCmd = { {0},{0}, 1 };
@@ -51,9 +51,11 @@ void debug(const char* str)
 	fflush(stdout);
 }
 
+//打印棋盘 1黑2白 上白下黑 黑0@，白X* 坐标先列后行
 void printBoard()
 {
 	char visualBoard[BOARD_SIZE][BOARD_SIZE + 1] = { 0 };
+	std::cout << "  01234567\n";
 	for (int i = 0; i < BOARD_SIZE; i++)
 	{
 		for (int j = 0; j < BOARD_SIZE; j++)
@@ -63,23 +65,24 @@ void printBoard()
 				case EMPTY:
 					visualBoard[i][j] = '.';
 					break;
-				case ENEMY_FLAG:
+				case BLACK_FLAG:
 					visualBoard[i][j] = 'O';
 					break;
-				case MY_FLAG:
+				case WHITE_FLAG:
 					visualBoard[i][j] = 'X';
 					break;
-				case ENEMY_KING:
+				case BLACK_KING:
 					visualBoard[i][j] = '@';
 					break;
-				case MY_KING:
+				case WHITE_KING:
 					visualBoard[i][j] = '*';
 					break;
 				default:
 					break;
 			}
 		}
-		printf("%s\n", visualBoard[i]);
+		/* 下面这句应置于debug中，本地debug暂时不变 */
+		printf("%d %s\n", i, visualBoard[i]);
 	}
 }
 
@@ -90,7 +93,7 @@ bool isInBound(int x, int y)
 
 void rotateCommand(struct Command* cmd)
 {
-	if (myFlag == ENEMY_FLAG)
+	if (myFlag == BLACK_FLAG)
 	{
 		for (int i = 0; i < cmd->numStep; i++)
 		{
@@ -132,6 +135,7 @@ void tryToJump(int x, int y, int currentStep)
 		newY = y + jumpDir[i][1];
 		midX = (x + newX) / 2;
 		midY = (y + newY) / 2;
+		//此处吃子有待更改
 		if (isInBound(newX, newY) && (board[midX][midY] & 1) && (board[newX][newY] == EMPTY))
 		{
 			board[newX][newY] = board[x][y];
@@ -172,13 +176,13 @@ void place(struct Command cmd)
 	}
 	for (int i = 0; i < BOARD_SIZE; i++)
 	{
-		if (board[0][i] == ENEMY_FLAG)
+		if (board[0][i] == BLACK_FLAG)
 		{
-			board[0][i] = ENEMY_KING;
+			board[0][i] = BLACK_KING;
 		}
-		if (board[BOARD_SIZE - 1][i] == MY_FLAG)
+		if (board[BOARD_SIZE - 1][i] == WHITE_FLAG)
 		{
-			board[BOARD_SIZE - 1][i] = MY_KING;
+			board[BOARD_SIZE - 1][i] = WHITE_KING;
 		}
 	}
 }
@@ -196,19 +200,19 @@ void place(struct Command cmd)
   /**
    * 你可以在这里初始化你的AI
    */
-void initAI(int me)
+void initAI()
 {
 	numMyFlag = 12;
 }
 
 /**
  * 轮到你落子。
- * 棋盘上0表示空白，1表示黑棋，2表示白旗
+ * 棋盘上0表示空白，1表示黑棋，2表示白棋
  * me表示你所代表的棋子(1或2)
  * 你需要返回一个结构体Command，其中numStep是你要移动的棋子经过的格子数（含起点、终点），
  * x、y分别是该棋子依次经过的每个格子的横、纵坐标
  */
-struct Command aiTurn(const char board[BOARD_SIZE][BOARD_SIZE], int me)
+struct Command aiTurn(const char board[BOARD_SIZE][BOARD_SIZE])
 {
 	/*
 	 * TODO：在这里写下你的AI。
@@ -225,7 +229,9 @@ struct Command aiTurn(const char board[BOARD_SIZE][BOARD_SIZE], int me)
 	{
 		for (int j = 0; j < BOARD_SIZE; j++)
 		{
-			if (board[i][j] > 0 && (board[i][j] & 1) == 0)
+			//白棋010 100，黑棋001 011，空000
+			//代表 有棋			且	棋是我方的
+			if (board[i][j] > 0 && (board[i][j] & 1) != (me-1))
 			{
 				numChecked++;
 				longestJumpCmd.numStep = 1;
@@ -256,6 +262,7 @@ struct Command aiTurn(const char board[BOARD_SIZE][BOARD_SIZE], int me)
  * YOUR CODE END
  */
 
+ //1黑2白
  //.X.X.X.X
  //X.X.X.X.
  //.X.X.X.X
@@ -264,33 +271,36 @@ struct Command aiTurn(const char board[BOARD_SIZE][BOARD_SIZE], int me)
  //O.O.O.O.
  //.O.O.O.O
  //O.O.O.O.
-void start(int flag)
+//初始化棋盘
+void start()
 {
 	memset(board, 0, sizeof(board));
+	/* 初始化上半棋盘 白色 */
 	for (int i = 0; i < 3; i++)
 	{
 		for (int j = 0; j < 8; j += 2)
 		{
-			board[i][j + (i + 1) % 2] = MY_FLAG;
+			board[i][j + (i + 1) % 2] = WHITE_FLAG;
 		}
 	}
+	/* 初始化下半棋盘 黑色 */
 	for (int i = 5; i < 8; i++)
 	{
 		for (int j = 0; j < 8; j += 2)
 		{
-			board[i][j + (i + 1) % 2] = ENEMY_FLAG;
+			board[i][j + (i + 1) % 2] = BLACK_FLAG;
 		}
 	}
 
-	initAI(flag);
+	initAI();
 }
 
 void turn()
 {
 	// AI
-	struct Command command = aiTurn((const char(*)[BOARD_SIZE])board, myFlag);
+	struct Command command = aiTurn((const char(*)[BOARD_SIZE])board);
 	place(command);
-	rotateCommand(&command);
+	//rotateCommand(&command);
 	printf("%d", command.numStep);
 	for (int i = 0; i < command.numStep; i++)
 	{
@@ -322,7 +332,8 @@ void loop()
 		if (strcmp(tag, START) == 0)
 		{
 			scanf("%d", &myFlag);
-			start(myFlag);
+			me = myFlag;
+			start();
 			printf("OK\n");
 			fflush(stdout);
 		}
@@ -333,7 +344,7 @@ void loop()
 			{
 				scanf("%d,%d", &command.x[i], &command.y[i]);
 			}
-			rotateCommand(&command);
+			//rotateCommand(&command);
 			place(command);
 		}
 		else if (strcmp(tag, TURN) == 0)
