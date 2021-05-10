@@ -2,10 +2,11 @@
  The project is about AI checkers.
 
  The code is based on "baseline"(https://github.com/sse2018-makyek-fun/std-client)
+ Not only the given region code has changed, but also other functions.
 
  Copyright © 2021 LPH.
 ************************************************************************************************/
-// Scanf safe
+// make scanf safely
 #define _CRT_SECURE_NO_WARNINGS
 
 // board information
@@ -37,8 +38,8 @@ struct Command
 
 char board[BOARD_SIZE][BOARD_SIZE] = { 0 };
 int myFlag;
-int moveDir[4][2] = { {1, -1}, {1, 1}, {-1, -1}, {-1, 1} };
-int jumpDir[4][2] = { {2, -2}, {2, 2}, {-2, -2}, {-2, 2} };
+int moveDir[4][2] = { {1, -1}, {1, 1}, {-1, -1}, {-1, 1} };	//移动一次一格
+int jumpDir[4][2] = { {2, -2}, {2, 2}, {-2, -2}, {-2, 2} };	//跳跃一次两格
 int numMyFlag;
 int me;
 struct Command moveCmd = { {0},{0},2 };
@@ -86,9 +87,16 @@ void printBoard()
 	}
 }
 
+//是否在边界内
 bool isInBound(int x, int y)
 {
 	return x >= 0 && x < BOARD_SIZE&& y >= 0 && y < BOARD_SIZE;
+}
+
+//是否为王
+bool isKing(int x, int y)
+{
+	return board[x][y] == WHITE_KING || board[x][y] == BLACK_KING;
 }
 
 void rotateCommand(struct Command* cmd)
@@ -103,10 +111,15 @@ void rotateCommand(struct Command* cmd)
 	}
 }
 
+//单格移动
 int tryToMove(int x, int y)
 {
 	int newX, newY;
-	for (int i = 0; i < board[x][y]; i++)
+
+	//for (int i = 0; i < board[x][y]; i++)
+	/* 没升王之前，黑棋me==1只能往上跳(减,i=2,3)，白棋me==2只能往下跳(加,i=0,1) */
+	int dir = (2 - me) * 2 * (!isKing(x, y));
+	for (int i = dir; i < dir + 2 + (isKing(x, y)) * 2; i++)
 	{
 		newX = x + moveDir[i][0];
 		newY = y + moveDir[i][1];
@@ -119,9 +132,10 @@ int tryToMove(int x, int y)
 			return i;
 		}
 	}
+
 	return -1;
 }
-
+//跳跃
 void tryToJump(int x, int y, int currentStep)
 {
 	int newX, newY, midX, midY;
@@ -129,14 +143,22 @@ void tryToJump(int x, int y, int currentStep)
 	jumpCmd.x[currentStep] = x;
 	jumpCmd.y[currentStep] = y;
 	jumpCmd.numStep++;
+
 	for (int i = 0; i < 4; i++)
 	{
-		newX = x + jumpDir[i][0];
+		newX = x + jumpDir[i][0];	//跳跃后的坐标
 		newY = y + jumpDir[i][1];
-		midX = (x + newX) / 2;
+		midX = (x + newX) / 2;		//跳跃时跨越的坐标
 		midY = (y + newY) / 2;
-		//此处吃子有待更改
-		if (isInBound(newX, newY) && (board[midX][midY] & 1) && (board[newX][newY] == EMPTY))
+
+		/*白棋010 100，黑棋001 011，空000
+		* &1	0 0	       1 1		0
+		* 黑me-1==0,白me-1==1
+		* 若我黑，则&1==0为敌人,me-1==0
+		* 若我白，则&1==1为敌人,me-1==1
+		*/
+		/* 如果在边界内              且   跨越的格子非空				且     跨越的格子是敌人的				且		跳跃后格子为空 */
+		if (isInBound(newX, newY) && board[midX][midY]!=EMPTY && ((board[midX][midY] & 1)==(me-1)) && (board[newX][newY] == EMPTY))
 		{
 			board[newX][newY] = board[x][y];
 			board[x][y] = EMPTY;
@@ -148,10 +170,12 @@ void tryToJump(int x, int y, int currentStep)
 			board[midX][midY] = tmpFlag;
 		}
 	}
+
 	if (jumpCmd.numStep > longestJumpCmd.numStep)
 	{
 		memcpy(&longestJumpCmd, &jumpCmd, sizeof(struct Command));
 	}
+
 	jumpCmd.numStep--;
 }
 
@@ -187,19 +211,6 @@ void place(struct Command cmd)
 	}
 }
 
-/**
- * YOUR CODE BEGIN
- * 你的代码开始
- */
-
- /**
-  * You can define your own struct and variable here
-  * 你可以在这里定义你自己的结构体和变量
-  */
-
-  /**
-   * 你可以在这里初始化你的AI
-   */
 void initAI()
 {
 	numMyFlag = 12;
@@ -214,9 +225,6 @@ void initAI()
  */
 struct Command aiTurn(const char board[BOARD_SIZE][BOARD_SIZE])
 {
-	/*
-	 * TODO：在这里写下你的AI。
-	 */
 	struct Command command =
 	{
 		{0},
@@ -240,6 +248,7 @@ struct Command aiTurn(const char board[BOARD_SIZE][BOARD_SIZE])
 				{
 					memcpy(&command, &longestJumpCmd, sizeof(struct Command));
 				}
+				/* 如果无法跳跃，则开始移动 */
 				if (command.numStep == 0)
 				{
 					if (tryToMove(i, j) >= 0)
@@ -256,11 +265,6 @@ struct Command aiTurn(const char board[BOARD_SIZE][BOARD_SIZE])
 	}
 	return command;
 }
-
-/**
- * 你的代码结束
- * YOUR CODE END
- */
 
  //1黑2白
  //.X.X.X.X
