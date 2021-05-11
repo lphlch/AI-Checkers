@@ -18,6 +18,7 @@
 #define BLACK_KING 3
 
 #define MAX_STEP 15
+#define MAX_CHESS 12
 
 #define START "START"
 #define PLACE "PLACE"
@@ -26,14 +27,24 @@
 
 #include <iostream>
 #include <cstdio>
-#include <stdlib.h>
+#include <cstdlib>
+#include <ctime>
 #include <cstring>
-
+#include <string>
+//命令结构体
 struct Command
 {
 	int x[MAX_STEP];
 	int y[MAX_STEP];
 	int numStep;
+};
+//己方棋子结构体
+struct myChess
+{
+	int x;
+	int y;
+	bool isKing;
+	bool isEaten;	//标记是否被吃了
 };
 
 char board[BOARD_SIZE][BOARD_SIZE] = { 0 };
@@ -45,10 +56,11 @@ int me;
 struct Command moveCmd = { {0},{0},2 };
 struct Command jumpCmd = { {0}, {0},  0 };
 struct Command longestJumpCmd = { {0},{0}, 1 };
+struct myChess myChesses[12];
 
-void debug(const char* str)
+void debug(std::string str)
 {
-	printf("DEBUG %s\n", str);
+	std::cout << "DEBUG " << str << std::endl;
 	fflush(stdout);
 }
 
@@ -56,7 +68,7 @@ void debug(const char* str)
 void printBoard()
 {
 	char visualBoard[BOARD_SIZE][BOARD_SIZE + 1] = { 0 };
-	std::cout << "  01234567\n";
+	std::cout << "DEBUG:   01234567\n";
 	for (int i = 0; i < BOARD_SIZE; i++)
 	{
 		for (int j = 0; j < BOARD_SIZE; j++)
@@ -82,8 +94,7 @@ void printBoard()
 					break;
 			}
 		}
-		/* 下面这句应置于debug中，本地debug暂时不变 */
-		printf("%d %s\n", i, visualBoard[i]);
+		printf("DEBUG: %d %s\n", i, visualBoard[i]);
 	}
 }
 
@@ -135,6 +146,7 @@ int tryToMove(int x, int y)
 
 	return -1;
 }
+
 //跳跃
 void tryToJump(int x, int y, int currentStep)
 {
@@ -158,7 +170,7 @@ void tryToJump(int x, int y, int currentStep)
 		* 若我白，则&1==1为敌人,me-1==1
 		*/
 		/* 如果在边界内              且   跨越的格子非空				且     跨越的格子是敌人的				且		跳跃后格子为空 */
-		if (isInBound(newX, newY) && board[midX][midY]!=EMPTY && ((board[midX][midY] & 1)==(me-1)) && (board[newX][newY] == EMPTY))
+		if (isInBound(newX, newY) && board[midX][midY] != EMPTY && ((board[midX][midY] & 1) == (me - 1)) && (board[newX][newY] == EMPTY))
 		{
 			board[newX][newY] = board[x][y];
 			board[x][y] = EMPTY;
@@ -170,7 +182,7 @@ void tryToJump(int x, int y, int currentStep)
 			board[midX][midY] = tmpFlag;
 		}
 	}
-
+	/* 如果这一跳是最大长的，存为最长 */
 	if (jumpCmd.numStep > longestJumpCmd.numStep)
 	{
 		memcpy(&longestJumpCmd, &jumpCmd, sizeof(struct Command));
@@ -179,25 +191,69 @@ void tryToJump(int x, int y, int currentStep)
 	jumpCmd.numStep--;
 }
 
+//根据坐标找到我的棋
+int findMyChess(int x, int y)
+{
+	for (int i = 0; i < MAX_CHESS; i++)
+	{
+		if (!myChesses[i].isEaten && myChesses[i].x == x && myChesses[i].y == y)
+		{
+			return i;
+		}
+	}
+	return -1;
+}
+
 void place(struct Command cmd)
 {
+	/*debug*/
+	std::cout << "DEBUG: PLACE " << cmd.numStep;
+	for (int i = 0; i < cmd.numStep; i++)
+	{
+		std::cout << " " << cmd.x[i] << "," << cmd.y[i] << " ";
+	}
+	std::cout << std::endl;
 	int midX, midY, curFlag;
 	curFlag = board[cmd.x[0]][cmd.y[0]];
 	for (int i = 0; i < cmd.numStep - 1; i++)
 	{
+		/* 移动棋子 */
 		board[cmd.x[i]][cmd.y[i]] = EMPTY;
 		board[cmd.x[i + 1]][cmd.y[i + 1]] = curFlag;
+		if (curFlag == me)	//如果是我方棋子，同时移动结构体
+		{
+			myChess& curChess = myChesses[findMyChess(cmd.x[i], cmd.y[i])];
+			curChess.x = cmd.x[i + 1];
+			curChess.y = cmd.y[i + 1];
+		}
+
+		/* 如果是跳 */
 		if (abs(cmd.x[i] - cmd.x[i + 1]) == 2)
 		{
 			midX = (cmd.x[i] + cmd.x[i + 1]) / 2;
 			midY = (cmd.y[i] + cmd.y[i + 1]) / 2;
-			if ((board[midX][midY] & 1) == 0)
+			/* 如果跨越是我方棋子，己方棋子少一个 */
+			/*白棋010 100，黑棋001 011，空000
+			* &1	0 0	       1 1		0
+			* 黑me-1==0,白me-1==1
+			* 若我黑，则&1==0为敌人,me-1==0
+			* 若我白，则&1==1为敌人,me-1==1
+			*/
+			if (board[midX][midY] != EMPTY && (board[midX][midY] & 1) != (me - 1))
 			{
 				numMyFlag--;
+				/* 找到我方被吃的那个棋，吃掉 */
+				int id = findMyChess(midX, midY);
+				myChesses[id].isEaten = true;
+				std::cout << "DEBUG: 我方编号" << id << "被吃" << std::endl;;
 			}
+			/* 无论跨越是不是我方的，都吃掉（吃自己人233） */
+			std::cout << "DEBUG: 吃子" << midX << "," << midY << std::endl;
+
 			board[midX][midY] = EMPTY;
 		}
 	}
+	/* 升王 */
 	for (int i = 0; i < BOARD_SIZE; i++)
 	{
 		if (board[0][i] == BLACK_FLAG)
@@ -213,7 +269,23 @@ void place(struct Command cmd)
 
 void initAI()
 {
-	numMyFlag = 12;
+	/* 我方棋子初始化 */
+	numMyFlag = 0;
+	for (int i = 0; i < BOARD_SIZE; i++)
+	{
+		for (int j = 0; j < BOARD_SIZE; j++)
+		{
+			if (board[i][j] == me)
+			{
+				myChesses[numMyFlag].x = i;
+				myChesses[numMyFlag].y = j;
+				myChesses[numMyFlag].isKing = false;
+				myChesses[numMyFlag].isEaten = false;
+				numMyFlag++;
+			}
+		}
+	}
+	debug("初始化成功");
 }
 
 /**
@@ -233,48 +305,91 @@ struct Command aiTurn(const char board[BOARD_SIZE][BOARD_SIZE])
 	};
 	int numChecked = 0;
 	int maxStep = 1;
-	for (int i = 0; i < BOARD_SIZE; i++)
+	/* 随机落子 */
+	bool israned[MAX_CHESS] = { false };
+	while (true)
 	{
-		for (int j = 0; j < BOARD_SIZE; j++)
+		int ran = rand() % MAX_CHESS;
+		/* 如果已经被随机过了		或		被吃了 ，则进行下一次随机*/
+		if (israned[ran] == true || myChesses[ran].isEaten == true)
 		{
-			//白棋010 100，黑棋001 011，空000
-			//代表 有棋			且	棋是我方的
-			if (board[i][j] > 0 && (board[i][j] & 1) != (me-1))
+			continue;
+		}
+		int x = myChesses[ran].x;
+		int y = myChesses[ran].y;
+		numChecked++;
+		longestJumpCmd.numStep = 1;
+
+		/* 尝试跳跃吃子 */
+		tryToJump(x, y, 0);
+		if (longestJumpCmd.numStep > maxStep)
+		{
+			//复制命令
+			memcpy(&command, &longestJumpCmd, sizeof(struct Command));
+			break;
+		}
+
+		/* 如果无法跳跃，则开始移动 */
+		if (command.numStep == 0)
+		{
+			if (tryToMove(x, y) >= 0)
 			{
-				numChecked++;
-				longestJumpCmd.numStep = 1;
-				tryToJump(i, j, 0);
-				if (longestJumpCmd.numStep > maxStep)
-				{
-					memcpy(&command, &longestJumpCmd, sizeof(struct Command));
-				}
-				/* 如果无法跳跃，则开始移动 */
-				if (command.numStep == 0)
-				{
-					if (tryToMove(i, j) >= 0)
-					{
-						memcpy(&command, &moveCmd, sizeof(struct Command));
-					}
-				}
-			}
-			if (numChecked >= numMyFlag)
-			{
-				return command;
+				//复制命令
+				memcpy(&command, &moveCmd, sizeof(struct Command));
 			}
 		}
+
+		if (numChecked >= numMyFlag)
+		{
+			return command;
+		}
+
+		/* 如果没有成功落子，标记被随机，进行下一次循环 */
+		israned[ran] = true;
 	}
+	//for (int i = 0; i < BOARD_SIZE; i++)
+	//{
+	//	for (int j = 0; j < BOARD_SIZE; j++)
+	//	{
+	//		//白棋010 100，黑棋001 011，空000
+	//		//代表 有棋			且	棋是我方的
+	//		if (board[i][j] > 0 && (board[i][j] & 1) != (me - 1))
+	//		{
+	//			numChecked++;
+	//			longestJumpCmd.numStep = 1;
+	//			/* 尝试跳跃吃子 */
+	//			tryToJump(i, j, 0);
+	//			if (longestJumpCmd.numStep > maxStep)
+	//			{
+	//				memcpy(&command, &longestJumpCmd, sizeof(struct Command));
+	//			}
+	//			/* 如果无法跳跃，则开始移动 */
+	//			if (command.numStep == 0)
+	//			{
+	//				if (tryToMove(i, j) >= 0)
+	//				{
+	//					memcpy(&command, &moveCmd, sizeof(struct Command));
+	//				}
+	//			}
+	//		}
+	//		if (numChecked >= numMyFlag)
+	//		{
+	//			return command;
+	//		}
+	//	}
+	//}
 	return command;
 }
 
- //1黑2白
- //.X.X.X.X
- //X.X.X.X.
- //.X.X.X.X
- //........
- //........
- //O.O.O.O.
- //.O.O.O.O
- //O.O.O.O.
+//1黑2白
+//.X.X.X.X
+//X.X.X.X.
+//.X.X.X.X
+//........
+//........
+//O.O.O.O.
+//.O.O.O.O
+//O.O.O.O.
 //初始化棋盘
 void start()
 {
@@ -366,6 +481,7 @@ void loop()
 
 int main(int argc, char* argv[])
 {
+	srand(time(0));
 	loop();
 	return 0;
 }
