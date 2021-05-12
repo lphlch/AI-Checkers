@@ -7,8 +7,10 @@ AI跳棋 课程项目
 基础框架，基于Baseline，完善AI，现在AI知道自己应该走哪个子了。Bug：AI只有在白子时会吃到黑子，黑子时会吃队友。
 * 0.1.1.21w19a (2021-5-10)  
 修复AI吃自己子的bug，可以进行正常对局（应该）。  
-* 1.0.0.21W19b (2021-5-11)  
+* 1.0.0.21w19b (2021-5-11)  
 AI现在会随机落子了；输出信息全部加上了debug，正式提交第一版（虽然战绩惨不忍睹）。  
+* 1.0.1.21w19c (2021-5-12)  
+修复了AI在随机落子时，没有进行最多吃子的bug，现在无论如何都会对每一棋子进行一次判断，但有多个最长时，以随机到的第一个为准。  
 
 # License
 This project is open source with Apache-2.0 License, for more detail, please view LICENSE file.  

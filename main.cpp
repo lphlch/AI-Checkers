@@ -182,7 +182,7 @@ void tryToJump(int x, int y, int currentStep)
 			board[midX][midY] = tmpFlag;
 		}
 	}
-	/* 如果这一跳是最大长的，存为最长 */
+	/* 如果这一跳是最长的，存为最长 */
 	if (jumpCmd.numStep > longestJumpCmd.numStep)
 	{
 		memcpy(&longestJumpCmd, &jumpCmd, sizeof(struct Command));
@@ -245,10 +245,10 @@ void place(struct Command cmd)
 				/* 找到我方被吃的那个棋，吃掉 */
 				int id = findMyChess(midX, midY);
 				myChesses[id].isEaten = true;
-				std::cout << "DEBUG: 我方编号" << id << "被吃" << std::endl;;
+				std::cout << "DEBUG: My Chess" << id << "was eaten" << std::endl;;
 			}
 			/* 无论跨越是不是我方的，都吃掉（吃自己人233） */
-			std::cout << "DEBUG: 吃子" << midX << "," << midY << std::endl;
+			std::cout << "DEBUG: Eat" << midX << "," << midY << std::endl;
 
 			board[midX][midY] = EMPTY;
 		}
@@ -285,7 +285,7 @@ void initAI()
 			}
 		}
 	}
-	debug("初始化成功");
+	debug("Init Success");
 }
 
 /**
@@ -307,7 +307,8 @@ struct Command aiTurn(const char board[BOARD_SIZE][BOARD_SIZE])
 	int maxStep = 1;
 	/* 随机落子 */
 	bool israned[MAX_CHESS] = { false };
-	while (true)
+	bool isAllRaned = false;
+	while (!isAllRaned)
 	{
 		int ran = rand() % MAX_CHESS;
 		/* 如果已经被随机过了		或		被吃了 ，则进行下一次随机*/
@@ -325,8 +326,8 @@ struct Command aiTurn(const char board[BOARD_SIZE][BOARD_SIZE])
 		if (longestJumpCmd.numStep > maxStep)
 		{
 			//复制命令
+			maxStep = longestJumpCmd.numStep;
 			memcpy(&command, &longestJumpCmd, sizeof(struct Command));
-			break;
 		}
 
 		/* 如果无法跳跃，则开始移动 */
@@ -339,13 +340,23 @@ struct Command aiTurn(const char board[BOARD_SIZE][BOARD_SIZE])
 			}
 		}
 
-		if (numChecked >= numMyFlag)
-		{
-			return command;
-		}
-
-		/* 如果没有成功落子，标记被随机，进行下一次循环 */
+		/* 标记被随机，准备进行下一次循环 */
 		israned[ran] = true;
+
+		/* 检测是否已经全部被随机 */
+		for (int i = 0; i < MAX_CHESS; i++)
+		{
+			if (israned[i] == true || myChesses[i].isEaten == true)
+			{
+				/* 若已经被随机 */
+				isAllRaned = true;
+			}
+			else
+			{
+				isAllRaned = false;
+				break;
+			}
+		}
 	}
 	//for (int i = 0; i < BOARD_SIZE; i++)
 	//{
