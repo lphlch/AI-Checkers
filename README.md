@@ -13,6 +13,8 @@ AI现在会随机落子了；输出信息全部加上了debug，正式提交第�
 修复了AI在随机落子时，没有进行最多吃子的bug，现在无论如何都会对每一棋子进行一次判断，但有多个最长时，以随机到的第一个为准。  
 * 1.0.1.21w19d (2021-5-14)  
 将己方的所有步骤存储起来，待日后判断。  
+* 1.1.0.21w19e (2021-5-16)  
+AI现在会进行第一层的搜索。支持输入棋盘功能。修复了到达底线不升王的bug。修复了对方王吃我方棋子时程序崩溃的bug。  
 
 # License
 This project is open source with Apache-2.0 License, for more detail, please view LICENSE file.  
