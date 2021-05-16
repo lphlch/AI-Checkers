@@ -232,7 +232,7 @@ bool tryToMove(int x, int y, Chess& chess, char board[BOARD_SIZE][BOARD_SIZE], i
 	int newX, newY;
 
 	//for (int i = 0; i < board[x][y]; i++)
-	/* 没升王之前，黑棋me==1只能往上跳(减,i=2,3)，白棋me==2只能往下跳(加,i=0,1) */
+	/* 没升王之前，黑棋curFlag==1只能往上跳(减,i=2,3)，白棋curFlag==2只能往下跳(加,i=0,1) */
 	int dir = (2 - curFlag) * 2 * (!isKing(x, y, board));
 	for (int i = dir; i < dir + 2 + (isKing(x, y, board)) * 2; i++)
 	{
@@ -318,6 +318,10 @@ void tryToJump(int x, int y, int currentStep, Chess& chess, char board[BOARD_SIZ
 //根据坐标找到我的棋
 Chess& findChess(int x, int y, int curFlag)
 {
+	if (curFlag > 2)
+	{
+		curFlag = curFlag - 2;
+	}
 	if (curFlag == me)
 	{
 		for (int i = 0; i < MAX_CHESS; i++)
@@ -358,11 +362,7 @@ bool searchStep(Chess& chess, int& maxStep, bool& isJump, char board[BOARD_SIZE]
 	{
 		return false;
 	}
-	/* 如果是王，先不考虑 */
-	if (chess.isKing == true)
-	{
-		return false;
-	}
+
 	int x = chess.x;
 	int y = chess.y;
 
@@ -443,20 +443,6 @@ int searchNextLevel(int level = 0)
 			minStepID = i;
 			cout << "DEBUG: minStep set2 to " << cmd.numStep << " by id= " << i << ", is Jump= " << cmd.isJump << endl;
 		}
-		/*if (cmd.isJump == true && isJump==false)
-		{
-			isJump = true;
-			minStep = cmd.numStep;
-			minStepID = i;
-			cout << "DEBUG: minStep set to " << cmd.numStep << "by id= " << i << ", is Jump= " << cmd.isJump << endl;
-		}
-		else if ((cmd.isJump == true && isJump == true &&cmd.numStep<minStep)|| (cmd.isJump == false && isJump == false && cmd.numStep < minStep))
-		{
-			minStep = cmd.numStep;
-			minStepID = i;
-			cout << "DEBUG: minStep set to " << cmd.numStep << "by id= " << i << ", is Jump= " << cmd.isJump << endl;
-		}*/
-
 	}
 
 	return minStepID;
@@ -468,7 +454,7 @@ void initNextBoard(int level)
 		/* 复制一块棋盘 */
 		memcpy(&firstStepBoard[i], board, sizeof(board));
 	}
-
+	return;
 }
 //深层搜索初始化
 void initNextLevel(int id, Command cmd)
@@ -509,7 +495,7 @@ void initNextLevel(int id, Command cmd)
 	}
 	clearChessesStep(2);
 
-	debug("Init Next Level Success");
+	//debug("Init Next Level Success");
 	return;
 }
 
@@ -611,20 +597,34 @@ void initAI()
 		for (int j = 0; j < BOARD_SIZE; j++)
 		{
 			/* 我方棋子初始化 */
-			if (board[i][j] == me)
+			if (board[i][j] == me || board[i][j] == me + 2)
 			{
 				myChesses[numMyFlag].x = i;
 				myChesses[numMyFlag].y = j;
-				myChesses[numMyFlag].isKing = false;
+				if (board[i][j] == me + 2)
+				{
+					myChesses[numMyFlag].isKing = true;
+				}
+				else
+				{
+					myChesses[numMyFlag].isKing = false;
+				}
 				myChesses[numMyFlag].isEaten = false;
 				numMyFlag++;
 			}
 			/* 敌方棋子初始化 */
-			if (board[i][j] == (3 - me))
+			if (board[i][j] == (3 - me) || board[i][j] == (3 - me) + 2)
 			{
 				enemyChesses[numEnemyFlag].x = i;
 				enemyChesses[numEnemyFlag].y = j;
-				enemyChesses[numEnemyFlag].isKing = false;
+				if (board[i][j] == (3 - me)+ 2)
+				{
+					enemyChesses[numEnemyFlag].isKing = true;
+				}
+				else
+				{
+					enemyChesses[numEnemyFlag].isKing = false;
+				}
 				enemyChesses[numEnemyFlag].isEaten = false;
 				numEnemyFlag++;
 			}
@@ -683,38 +683,6 @@ struct Command aiTurn(Chess chesses[], char board[BOARD_SIZE][BOARD_SIZE], int c
 	//	if (israned[ran] == true || myChesses[ran].isEaten == true)
 	//	{
 	//		continue;
-	//	}
-	//	int x = myChesses[ran].x;
-	//	int y = myChesses[ran].y;
-	//	//longestJumpCmd.numStep = 1;
-
-	//	/* 尝试跳跃吃子,最后每个棋子的合法走法在myChess的jump数组里面 */
-	//	cout << "DEBUG: Now judge jump my chess id: " << ran << " x=" << myChesses[ran].x << " y=" << myChesses[ran].y << endl;
-	//	tryToJump(x, y, 0,ran);
-	//	/* 如果还不能吃，但是这个棋子可以吃 或 这个棋子最长的走法大于所有棋子的走法,该走法设为最长 */
-	//	if ((isJump==false && myChesses[ran].maxJumpStep >= 2) ||myChesses[ran].maxJumpStep > maxStep)
-	//	{
-	//		maxStep = myChesses[ran].maxJumpStep;
-	//		isJump = true;
-	//		cout << "DEBUG: GROBLE max step= " << maxStep << " isJump= " << isJump << endl;
-	//		////复制命令
-	//		//maxStep = longestJumpCmd.numStep;
-	//		//memcpy(&command, &longestJumpCmd, sizeof(struct Command));
-	//	}
-
-	//	/* 如果无法跳跃，则开始移动 */
-	//	if (isJump==false)
-	//	{
-	//		/* debug */
-	//		cout << "DEBUG: Now judge move my chess id: " << ran << " x="<< myChesses[ran].x<<" y="<<myChesses[ran].y<<endl;
-	//		clearOneChessStep(myChesses[ran]);
-	//		if (tryToMove(x, y,ran))
-	//		{
-	//			myChesses[ran].maxJumpStep = 2;
-	//			maxStep = 2;
-	//			////复制命令
-	//			//memcpy(&command, &moveCmd, sizeof(struct Command));
-	//		}
 	//	}
 
 	//	/* 标记被随机，准备进行下一次循环 */
@@ -939,6 +907,8 @@ void loop()
 		}
 		printBoard(board);
 	}
+
+	return;
 }
 
 int main(int argc, char* argv[])
