@@ -17,6 +17,8 @@ AI现在会随机落子了；输出信息全部加上了debug，正式提交第�
 暂时停用随机落子功能，AI现在会进行第一层的搜索。支持输入棋盘功能。修复了到达底线不升王的bug。修复了对方王吃我方棋子时程序崩溃的bug。  
 * 1.2.0.21w19f (2021-5-16)  
 完善王的行动逻辑，现在王会正常吃子。  
+* 1.3.0.21w20a (2021-5-21)  
+添加评估功能，将第一层搜索的结果用局面评估代替吃子数。修复了王吃两个以上子会消失的问题。  
 
 # License
 This project is open source with Apache-2.0 License, for more detail, please view LICENSE file.  

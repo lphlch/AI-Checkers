@@ -20,7 +20,7 @@
 #define BLACK_FLAG 1
 #define BLACK_KING 3
 
-#define MAX_STEP 15
+#define MAX_STEP 12
 #define MAX_CHESS 12
 #define MAX_SEARCH 100	//最多搜索100种，否则时间也来不及
 #define MAX_SEARCH_LEVEL 3
@@ -30,12 +30,55 @@
 #define TURN "TURN"
 #define END "END"
 
+const int WHITE_SCORE[BOARD_SIZE][BOARD_SIZE] = {
+	{0,1,0,9,0,1,0,1},
+	{1,0,3,0,3,0,3,0},
+	{0,4,0,6,0,6,0,3},
+	{6,0,7,0,7,0,5,0},
+	{0,8,0,8,0,8,0,9},
+	{7,0,8,0,8,0,8,0},
+	{0,8,0,8,0,8,0,7},
+	{0,0,0,0,0,0,0,0}
+};
+const int BLACK_SCORE[BOARD_SIZE][BOARD_SIZE] = {
+	{0,0,0,0,0,0,0,0},
+	{7,0,8,0,8,0,8,0},
+	{0,8,0,8,0,8,0,7},
+	{9,0,8,0,8,0,8,0},
+	{0,5,0,7,0,7,0,6},
+	{3,0,6,0,6,0,4,0},
+	{0,3,0,3,0,3,0,1},
+	{1,0,1,0,9,0,1,0}
+};
+const int WHITE_KING_SCORE[BOARD_SIZE][BOARD_SIZE] = {
+	{0,10,0,10,0,10,0,10},
+	{11,0,11,0,11,0,11,0},
+	{0,12,0,12,0,12,0,12},
+	{13,0,13,0,13,0,13,0},
+	{0,13,0,13,0,13,0,13},
+	{12,0,12,0,12,0,12,0},
+	{0,11,0,11,0,11,0,11},
+	{10,0,10,0,10,0,10,0}
+};
+const int BLACK_KING_SCORE[BOARD_SIZE][BOARD_SIZE] = {
+	{0,10,0,10,0,10,0,10},
+	{11,0,11,0,11,0,11,0},
+	{0,12,0,12,0,12,0,12},
+	{13,0,13,0,13,0,13,0},
+	{0,13,0,13,0,13,0,13},
+	{12,0,12,0,12,0,12,0},
+	{0,11,0,11,0,11,0,11},
+	{10,0,10,0,10,0,10,0},
+};
+
+#include <algorithm>
 #include <iostream>
 #include <cstdio>
 #include <cstdlib>
 #include <ctime>
 #include <cstring>
 #include <string>
+#include <vector>
 
 using std::cin;
 using std::cout;
@@ -65,6 +108,7 @@ struct LegalCommand
 {
 	int chessID[MAX_SEARCH];
 	Command legalCommand[MAX_SEARCH];
+	int score[MAX_SEARCH];
 	int count;
 };
 //棋子结构体
@@ -80,7 +124,7 @@ struct Chess
 	bool isJump;	//标记这一跳是否为吃
 };
 
-struct Command aiTurn(Chess chesses[], char board[BOARD_SIZE][BOARD_SIZE], int curFlag);
+int aiTurn(Chess chesses[], char board[BOARD_SIZE][BOARD_SIZE], int curFlag, Command& cmd);
 void initNextBoard(int level = 0);
 void initNextLevel(int id, Command cmd);
 void place(struct Command cmd, char board[BOARD_SIZE][BOARD_SIZE], bool isVirtual = false, bool isEnemyTurn = false);
@@ -225,6 +269,23 @@ void clearOneChessStep(Chess& chess)
 	chess.maxJumpNum = 0;
 	chess.isJump = false;
 }
+//清空深层搜索 0全清 1清1层
+void clearLevelSearch(int mode = 0)
+{
+	if (mode == 0)
+	{
+		memset(legalCommand, 0, sizeof(legalCommand));
+		memset(firstStepBoard, 0, sizeof(firstStepBoard));
+		memset(enemyChesses, 0, sizeof(enemyChesses));
+	}
+	else if (mode == 1)
+	{
+		memset(&legalCommand[1], 0, sizeof(legalCommand[1]));
+	}
+
+
+	return;
+}
 
 //单格移动
 bool tryToMove(int x, int y, Chess& chess, char board[BOARD_SIZE][BOARD_SIZE], int curFlag)
@@ -344,13 +405,58 @@ Chess& findChess(int x, int y, int curFlag)
 	}
 }
 
+//评估当前价值,均是相当于黑方来说,正数表示利于黑方
+int getCurrentScore(const char board[BOARD_SIZE][BOARD_SIZE])
+{
+	int score = 0;
+	for (int i = 0; i < BOARD_SIZE; i++)
+	{
+		for (int j = 0; j < BOARD_SIZE; j++)
+		{
+			if (board[i][j] == WHITE_KING)
+			{
+				score -= WHITE_KING_SCORE[i][j];
+			}
+			else if (board[i][j] == WHITE_FLAG)
+			{
+				score -= WHITE_SCORE[i][j];
+			}
+			if (board[i][j] == BLACK_KING)
+			{
+				score += BLACK_KING_SCORE[i][j];
+			}
+			else if (board[i][j] == BLACK_FLAG)
+			{
+				score += BLACK_SCORE[i][j];
+			}
+			//}
+		}
+	}
+	return score;
+}
+
+//根据命令返回我方价值
+int getCommandScore(Command& command, const char curBoard[BOARD_SIZE][BOARD_SIZE], int curFlag)
+{
+	/* 初始化棋盘 */
+	char nextBoard[BOARD_SIZE][BOARD_SIZE] = { 0 };
+	memcpy(nextBoard, curBoard, sizeof(nextBoard));
+
+	/* 虚拟放置 */
+	place(command, nextBoard, true);
+
+	/* 评估价值 */
+	return getCurrentScore(nextBoard);
+}
+
 //储存合法走法
-void saveLegalCommand(int id, Command cmd, int level = 0)
+void saveLegalCommand(int id, Command cmd, int level, int score = 0)
 {
 	LegalCommand& lcmd = legalCommand[level];
 	int& num = legalCommand[level].count;
 	lcmd.chessID[num] = id;
 	lcmd.legalCommand[num] = cmd;
+	lcmd.score[num] = score;
 	num++;
 }
 
@@ -401,17 +507,36 @@ bool searchStep(Chess& chess, int& maxStep, bool& isJump, char board[BOARD_SIZE]
 	return false;
 }
 
-//对每一己方合法走法进行搜索(暂时先搜一层）,返回收益id值
+//对每一己方合法走法进行搜索(暂时先搜一层）,返回收益id值,还应该返回收益值（暂时无）
 int searchNextLevel(int level = 0)
 {
 	cout << "DEBUG: Now Search LEVEL= " << level << endl;
 	/* 或许应该用Command来存储 */
 	int minStep = MAX_STEP;
-	int minStepID = 0;
+	int bestStepID = 0;
+	int bestScore;
+	if (me == WHITE_FLAG)
+	{
+		bestScore = 100;
+	}
+	else
+	{
+		bestScore = -100;
+	}
+
 	bool isJump = true;
 	/* 对每一合法步骤判断 */
 	for (int i = 0; i < legalCommand[level].count; i++)
 	{
+		clearLevelSearch(1);
+
+		cout << "DEBUG: \nDEBUG: Search cmd: ";
+		cout << "PLACE " << legalCommand[level].legalCommand[i].numStep;
+		for (int j = 0; j < legalCommand[level].legalCommand[i].numStep; j++)
+		{
+			cout << " " << legalCommand[level].legalCommand[i].x[j] << "," << legalCommand[level].legalCommand[i].y[j] << " ";
+		}
+		cout << endl;
 		/* 奇数层为我方搜索 偶数层（包括0）是敌方搜索 */
 		if (level % 2 == 0)
 		{
@@ -424,29 +549,57 @@ int searchNextLevel(int level = 0)
 		initNextLevel(legalCommand[level].chessID[i], legalCommand[level].legalCommand[i]);
 
 		/* 尝试下棋 */
-		cout << "DEBUG: Try to judge level= " << level << ", number= " << i << ", Chess id= " << legalCommand[level].chessID[i] << endl;
 		int curFlag = (3 - me);
 
+		Command cmd;
+		int curScore = aiTurn(enemyChesses, firstStepBoard[legalCommand[level].chessID[i]], curFlag, cmd);	//暂时先这么写
 
-		Command cmd = aiTurn(enemyChesses, firstStepBoard[legalCommand[level].chessID[i]], curFlag);	//暂时先这么写
-		//返回来的cmd，是这一跳之后，对面最有收益的下法，现在需要找出对方最没有收益的下法
-		if (isJump && cmd.isJump == false && cmd.numStep <= minStep)	//暂时认为不吃最没有收益
+		cout << "DEBUG: Judged level= " << level << ",flag= " << curFlag << ", number= " << i << ", Chess id= " << legalCommand[level].chessID[i] << ", score= " << curScore << endl;
+		cout << "DEBUG: PLACE " << cmd.numStep;
+		for (int i = 0; i < cmd.numStep; i++)
 		{
-			minStep = cmd.numStep;
-			minStepID = i;
-			isJump = false;
-			cout << "DEBUG: minStep set1 to " << cmd.numStep << " by id= " << i << ", is Jump= " << cmd.isJump << endl;
+			cout << " " << cmd.x[i] << "," << cmd.y[i] << " ";
 		}
-		else if (isJump && cmd.isJump && cmd.numStep <= minStep)
+		cout << endl;
+
+		//返回来的cmd，是这一跳之后，对面最有收益的下法，现在需要找出对方最没有收益的下法
+		//if (isJump && cmd.isJump == false && cmd.numStep <= minStep)	//暂时认为不吃最没有收益
+		//{
+		//	minStep = cmd.numStep;
+		//	minStepID = i;
+		//	isJump = false;
+		//	cout << "DEBUG: minStep set1 to " << cmd.numStep << " by id= " << i << ", is Jump= " << cmd.isJump << endl;
+		//}
+		//else if (isJump && cmd.isJump && cmd.numStep <= minStep)
+		//{
+		//	minStep = cmd.numStep;
+		//	minStepID = i;
+		//	cout << "DEBUG: minStep set2 to " << cmd.numStep << " by id= " << i << ", is Jump= " << cmd.isJump << endl;
+		//}
+		/* 对于我方，要求最大值 */
+		if (me == WHITE_FLAG)	//我是白方，会要求黑方最小化
 		{
-			minStep = cmd.numStep;
-			minStepID = i;
-			cout << "DEBUG: minStep set2 to " << cmd.numStep << " by id= " << i << ", is Jump= " << cmd.isJump << endl;
+			if (curScore < bestScore)
+			{
+				bestScore = curScore;
+				bestStepID = i;
+				cout << "DEBUG: bestStep set to " << cmd.numStep << " by id= " << i << ", score= " << bestScore << endl;
+			}
+		}
+		else
+		{
+			if (curScore > bestScore)
+			{
+				bestScore = curScore;
+				bestStepID = i;
+				cout << "DEBUG: bestStep set to " << cmd.numStep << " by id= " << i << ", score= " << bestScore << endl;
+			}
 		}
 	}
 
-	return minStepID;
+	return bestStepID;
 }
+
 void initNextBoard(int level)
 {
 	for (int i = 0; i < MAX_CHESS; i++)
@@ -462,7 +615,7 @@ void initNextLevel(int id, Command cmd)
 	cout << "DEBUG: Start Init next level ,Chess id= " << id << endl;
 	/* 模拟下棋 */
 	place(cmd, firstStepBoard[id], true, false);
-	if (DEBUG_MODE)
+	if (0)
 	{
 		cout << "DEBUG: After place board:\n";
 		printBoard(firstStepBoard[id]);
@@ -499,26 +652,20 @@ void initNextLevel(int id, Command cmd)
 	return;
 }
 
-//清空深层搜索
-void clearLevelSearch()
-{
-	memset(legalCommand, 0, sizeof(legalCommand));
-	memset(firstStepBoard, 0, sizeof(firstStepBoard));
-	memset(enemyChesses, 0, sizeof(enemyChesses));
-
-	return;
-}
-
 //放置棋子，若是虚拟放置，则放置后不会进行结构体的移动,需要另行初始化
 void place(struct Command cmd, char board[BOARD_SIZE][BOARD_SIZE], bool isVirtual, bool isEnemyTurn)
 {
 	/*debug*/
-	cout << "DEBUG: PLACE " << cmd.numStep;
-	for (int i = 0; i < cmd.numStep; i++)
+	if (DEBUG_MODE)
 	{
-		cout << " " << cmd.x[i] << "," << cmd.y[i] << " ";
+		cout << "DEBUG: PLACE " << cmd.numStep;
+		for (int i = 0; i < cmd.numStep; i++)
+		{
+			cout << " " << cmd.x[i] << "," << cmd.y[i] << " ";
+		}
+		cout << endl;
 	}
-	cout << endl;
+
 	int midX, midY, curFlag;
 	curFlag = board[cmd.x[0]][cmd.y[0]];
 
@@ -550,11 +697,12 @@ void place(struct Command cmd, char board[BOARD_SIZE][BOARD_SIZE], bool isVirtua
 			if (board[midX][midY] != EMPTY && !isVirtual && isEnemyTurn)
 			{
 				/* 找到被吃的那个棋，吃掉 */
-				if (curFlag > 2)
+				int findCurFlag = curFlag;
+				if (findCurFlag > 2)
 				{
-					curFlag = curFlag % 2;
+					findCurFlag = findCurFlag % 2;
 				}
-				Chess& curChess = findChess(midX, midY, 3 - curFlag);
+				Chess& curChess = findChess(midX, midY, 3 - findCurFlag);
 				curChess.isEaten = true;
 				cout << "DEBUG: Eat" << midX << "," << midY << endl;
 			}
@@ -585,6 +733,8 @@ void place(struct Command cmd, char board[BOARD_SIZE][BOARD_SIZE], bool isVirtua
 			}
 		}
 	}
+
+	return;
 }
 
 //初始化AI
@@ -617,7 +767,7 @@ void initAI()
 			{
 				enemyChesses[numEnemyFlag].x = i;
 				enemyChesses[numEnemyFlag].y = j;
-				if (board[i][j] == (3 - me)+ 2)
+				if (board[i][j] == (3 - me) + 2)
 				{
 					enemyChesses[numEnemyFlag].isKing = true;
 				}
@@ -632,7 +782,7 @@ void initAI()
 	}
 	clearChessesStep(0);
 
-	debug("Init Success");
+	//debug("Init Success");
 }
 
 /**
@@ -642,7 +792,7 @@ void initAI()
  * 你需要返回一个结构体Command，其中numStep是你要移动的棋子经过的格子数（含起点、终点），
  * x、y分别是该棋子依次经过的每个格子的横、纵坐标
  */
-struct Command aiTurn(Chess chesses[], char board[BOARD_SIZE][BOARD_SIZE], int curFlag)
+int aiTurn(Chess chesses[], char board[BOARD_SIZE][BOARD_SIZE], int curFlag, Command& cmd)
 {
 	struct Command command =
 	{
@@ -704,8 +854,8 @@ struct Command aiTurn(Chess chesses[], char board[BOARD_SIZE][BOARD_SIZE], int c
 	//	}
 	//}
 
-	/* 检索所有最大走法，并返回第一个（暂时） */
-	cout << "DEBUG: \nDEBUG: MaxStep=" << maxStep << " with isJump= " << isJump << endl;
+	/* 检索所有合法走法，并返回第一个（暂时） */
+	//cout << "DEBUG: \nDEBUG: MaxStep=" << maxStep << " with isJump= " << isJump << endl;
 	for (int i = 0; i < MAX_CHESS; i++)
 	{
 		if (chesses[i].maxJumpStep == maxStep && chesses[i].isJump == isJump)
@@ -724,12 +874,14 @@ struct Command aiTurn(Chess chesses[], char board[BOARD_SIZE][BOARD_SIZE], int c
 				/* 复制到合法走法结构体中暂存 */
 				if (chesses == myChesses)	//暂时先这么判断是否为第0层
 				{
-					saveLegalCommand(i, chesses[i].jump[j]);
+					int score = getCommandScore(chesses[i].jump[j], board, curFlag);
+					saveLegalCommand(i, chesses[i].jump[j], 0, score);
 				}
 				else
 				{
-					saveLegalCommand(i, chesses[i].jump[j], 1);
-					memcpy(&command, &chesses[i].jump[j], sizeof(struct Command));
+					int score = getCommandScore(chesses[i].jump[j], board, curFlag);
+					saveLegalCommand(i, chesses[i].jump[j], 1, score);
+					//memcpy(&command, &chesses[i].jump[j], sizeof(struct Command));
 				}
 				if (DEBUG_MODE)
 				{
@@ -786,10 +938,51 @@ struct Command aiTurn(Chess chesses[], char board[BOARD_SIZE][BOARD_SIZE], int c
 		cout << "DEBUG: Search Done!\n";
 		memcpy(&command, &lcmd.legalCommand[id], sizeof(struct Command));
 		printBoard(board);
+		cout << "DEBUG: Before score: " << getCurrentScore(board) << endl;
+	}
+	else
+	{
+		LegalCommand& lcmd = legalCommand[1];
+
+
+		int bestScore = lcmd.score[0];
+		int bestPos = 0;
+		for (int i = 0; i < lcmd.count; i++)
+		{
+			////if(level%2 == 1)	//敌方行动，待完善
+			//if (bestScore > lcmd.score[i])
+			//{
+			//	bestScore = lcmd.score[i];
+			//	bestPos = i;
+			//}
+			/* 对于敌方行动，要求最小值 */	//在没有完善α-β算法前暂时先这样反着写.因为第0层之后，第一层的AI会走分数最大的方法
+			if (me == WHITE_FLAG)	//我是白方，敌人黑方会让分数最大化
+			{
+				if (bestScore < lcmd.score[i])
+				{
+					bestScore = lcmd.score[i];
+					bestPos = i;
+				}
+			}
+			else
+			{
+				if (bestScore > lcmd.score[i])
+				{
+					bestScore = lcmd.score[i];
+					bestPos = i;
+				}
+			}
+
+		}
+		memcpy(&command, &lcmd.legalCommand[bestPos], sizeof(struct Command));
+		cmd = command;
+		//cout << "DEBUG: Best Score " << bestScore << endl;
+		return bestScore;
 	}
 
 
-	return command;
+	cmd = command;
+	return -1;
 }
 
 //1黑2白
@@ -845,7 +1038,8 @@ void turn()
 {
 	// AI
 	//printBoard(board);
-	struct Command command = aiTurn(myChesses, board, me);
+	struct Command command;
+	aiTurn(myChesses, board, me, command);
 	place(command, board, false, false);
 	//rotateCommand(&command);
 	printf("%d", command.numStep);
@@ -906,6 +1100,7 @@ void loop()
 			end(status);
 		}
 		printBoard(board);
+		cout << "DEBUG: Now score= " << getCurrentScore(board) << endl;
 	}
 
 	return;
