@@ -11,6 +11,7 @@
 
 #define DEBUG_MODE 0
 #define INIT_MODE 0
+#define BOARD_MODE 0
 
 // board information
 #define BOARD_SIZE 8
@@ -30,6 +31,7 @@
 #define TURN "TURN"
 #define END "END"
 
+#pragma region 分数表
 const int WHITE_SCORE[BOARD_SIZE][BOARD_SIZE] = {
 	{0,1,0,9,0,1,0,1},
 	{1,0,3,0,3,0,3,0},
@@ -70,6 +72,11 @@ const int BLACK_KING_SCORE[BOARD_SIZE][BOARD_SIZE] = {
 	{0,11,0,11,0,11,0,11},
 	{10,0,10,0,10,0,10,0},
 };
+#pragma endregion
+
+//const char CHESS_MANUAL[] = {
+//	{};
+//}
 
 #include <algorithm>
 #include <iostream>
@@ -153,7 +160,21 @@ void debug(std::string str)
 void printBoard(char board[BOARD_SIZE][BOARD_SIZE])
 {
 	char visualBoard[BOARD_SIZE][BOARD_SIZE + 1] = { 0 };
-	std::cout << "DEBUG:   01234567\n";
+	if (0)
+	{
+		cout << "DEBUG: ";
+		for (int i = 0; i < BOARD_SIZE; i++)
+		{
+			for (int j = 0; j < BOARD_SIZE; j++)
+			{
+				cout << (int)board[i][j];
+			}
+			cout << ",";
+		}
+		cout << endl;
+		return;
+	}
+	cout << "DEBUG:   01234567\n";
 	for (int i = 0; i < BOARD_SIZE; i++)
 	{
 		for (int j = 0; j < BOARD_SIZE; j++)
@@ -530,13 +551,18 @@ int searchNextLevel(int level = 0)
 	{
 		clearLevelSearch(1);
 
-		cout << "DEBUG: \nDEBUG: Search cmd: ";
-		cout << "PLACE " << legalCommand[level].legalCommand[i].numStep;
-		for (int j = 0; j < legalCommand[level].legalCommand[i].numStep; j++)
+		if (!BOARD_MODE)
 		{
-			cout << " " << legalCommand[level].legalCommand[i].x[j] << "," << legalCommand[level].legalCommand[i].y[j] << " ";
+			cout << "DEBUG: \nDEBUG: Search cmd: ";
+			cout << "PLACE " << legalCommand[level].legalCommand[i].numStep;
+			for (int j = 0; j < legalCommand[level].legalCommand[i].numStep; j++)
+			{
+				cout << " " << legalCommand[level].legalCommand[i].x[j] << "," << legalCommand[level].legalCommand[i].y[j] << " ";
+			}
+			cout << endl;
 		}
-		cout << endl;
+
+
 		/* 奇数层为我方搜索 偶数层（包括0）是敌方搜索 */
 		if (level % 2 == 0)
 		{
@@ -554,8 +580,12 @@ int searchNextLevel(int level = 0)
 		Command cmd;
 		int curScore = aiTurn(enemyChesses, firstStepBoard[legalCommand[level].chessID[i]], curFlag, cmd);	//暂时先这么写
 
-		cout << "DEBUG: Judged level= " << level << ",flag= " << curFlag << ", number= " << i << ", Chess id= " << legalCommand[level].chessID[i] << ", score= " << curScore << endl;
-		cout << "DEBUG: PLACE " << cmd.numStep;
+		if (!BOARD_MODE)
+		{
+			cout << "DEBUG: Judged level= " << level << ",flag= " << curFlag << ", number= " << i << ", Chess id= " << legalCommand[level].chessID[i] << ", score= " << curScore << endl;
+			cout << "DEBUG: PLACE " << cmd.numStep;
+		}
+
 		for (int i = 0; i < cmd.numStep; i++)
 		{
 			cout << " " << cmd.x[i] << "," << cmd.y[i] << " ";
@@ -612,7 +642,11 @@ void initNextBoard(int level)
 //深层搜索初始化
 void initNextLevel(int id, Command cmd)
 {
-	cout << "DEBUG: Start Init next level ,Chess id= " << id << endl;
+	if (!BOARD_MODE)
+	{
+		cout << "DEBUG: Start Init next level ,Chess id= " << id << endl;
+
+	}
 	/* 模拟下棋 */
 	place(cmd, firstStepBoard[id], true, false);
 	if (0)
@@ -935,10 +969,14 @@ int aiTurn(Chess chesses[], char board[BOARD_SIZE][BOARD_SIZE], int curFlag, Com
 	{
 		LegalCommand& lcmd = legalCommand[0];
 		int id = searchNextLevel();
-		cout << "DEBUG: Search Done!\n";
+		//cout << "DEBUG: Search Done!\n";
 		memcpy(&command, &lcmd.legalCommand[id], sizeof(struct Command));
 		printBoard(board);
-		cout << "DEBUG: Before score: " << getCurrentScore(board) << endl;
+		if (!BOARD_MODE)
+		{
+			cout << "DEBUG: Before score: " << getCurrentScore(board) << endl;
+
+		}
 	}
 	else
 	{
@@ -1034,11 +1072,15 @@ void start()
 	initAI();
 }
 
+void specialTurn(char board[][BOARD_SIZE],int myFlag)
+{
+	;
+}
+
 void turn()
 {
-	// AI
-	//printBoard(board);
 	struct Command command;
+	specialTurn(board,me);
 	aiTurn(myChesses, board, me, command);
 	place(command, board, false, false);
 	//rotateCommand(&command);
@@ -1100,7 +1142,11 @@ void loop()
 			end(status);
 		}
 		printBoard(board);
-		cout << "DEBUG: Now score= " << getCurrentScore(board) << endl;
+		if (!BOARD_MODE)
+		{
+			cout << "DEBUG: Now score= " << getCurrentScore(board) << endl;
+
+		}
 	}
 
 	return;
@@ -1112,3 +1158,53 @@ int main(int argc, char* argv[])
 	loop();
 	return 0;
 }
+/*
+function minimax(node, depth, a, b)
+	if node is a terminal node or depth = 0
+		return the heuristic value of node
+	if #opposite
+		foreach child of node
+			b := min(a, minimax(child, depth-1, a, b))
+			if b <= a
+				  return b
+		return b
+	else we
+		foreach child of node
+			a := max(b, minimax(child, depth-1, a, b))
+			if b <= a
+				   return a
+		 return a
+*/
+
+//最小最大值算法
+//int minMax(node, int curDepth, int a, int b)
+//{
+//	if (node == MAXDEPTH || curDepth == 0)
+//	{
+//		return node_value
+//	}
+//	if (curDepth % 2 == 1)	//Min
+//	{
+//		for (child : childs_of_node)
+//		{
+//			b = std::min(a, minMax(child, curDepth - 1, a, b));
+//			if (b <= a)
+//			{
+//				return b;
+//			}
+//		}
+//		return b;
+//	}
+//	else
+//	{
+//		for (child : childs_of_node)
+//		{
+//			a = std::max(a, minMax(child, curDepth - 1, a, b));
+//			if (b <= a)
+//			{
+//				return a;
+//			}
+//		}
+//		return a;
+//	}
+//}
