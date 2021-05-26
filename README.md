@@ -21,6 +21,8 @@ AI现在会随机落子了；输出信息全部加上了debug，正式提交第�
 添加评估功能，将第一层搜索的结果用局面评估代替吃子数。修复了王吃两个以上子会消失的问题。  
 * 1.3.1.21w20b (2021-5-23)  
 粗略描述最小最大值算法。  
+* 1.3.2.21w21a (2021-5-26)  
+将存放合法步骤的结构体改为二维vector数组，以等待进一步优化算法。  
 
 # License
 This project is open source with Apache-2.0 License, for more detail, please view LICENSE file.  
