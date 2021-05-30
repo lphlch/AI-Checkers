@@ -24,7 +24,9 @@ AI现在会随机落子了；输出信息全部加上了debug，正式提交第�
 * 1.3.2.21w21a (2021-5-26)  
 将存放合法步骤的结构体改为二维vector数组，以等待进一步优化算法。  
 * 2.0.0.21w21b (2021-5-30)  
-应用最小最大算法，搜索深度到达第二层。去除了结构体方法。  
+应用最小最大算法，搜索深度到达第2层。去除了结构体方法。  
+* 2.1.0.21w21c (2021-5-30)  
+修复了最小最大算法会产生崩溃的bug，搜索深度达到第6层。  
 
 # License
 This project is open source with Apache-2.0 License, for more detail, please view LICENSE file.  
