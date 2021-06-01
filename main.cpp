@@ -13,6 +13,8 @@
 #define INIT_MODE 0
 #define BOARD_MODE 0
 #define SUBMIT_MODE 1
+#define CMD_MODE 0
+#define MAX_SHOW_LEVEL 1
 
 // board information
 #define BOARD_SIZE 8
@@ -245,56 +247,7 @@ void rotateCommand(struct Command* cmd)
 //清空上一次所有己方棋子存储的走法 0=all 1=my 2=enemy
 void clearChessesStep(int mode)
 {
-	/* debug */
-	switch (mode)
-	{
-		case 0:
-			if (DEBUG_MODE)
-			{
-				cout << "DEBUG: ALL CHESSES CLEAR!\n";
-			}
-			for (int i = 0; i < MAX_CHESS; i++)
-			{
-				memset(myChesses[i].jump, 0, sizeof(myChesses[i].jump));
-				myChesses[i].maxJumpStep = 0;
-				myChesses[i].maxJumpNum = 0;
-				myChesses[i].isJump = false;
-				memset(enemyChesses[i].jump, 0, sizeof(enemyChesses[i].jump));
-				enemyChesses[i].maxJumpStep = 0;
-				enemyChesses[i].maxJumpNum = 0;
-				enemyChesses[i].isJump = false;
-			}
-			break;
-		case 1:
-			if (DEBUG_MODE)
-			{
-				cout << "DEBUG: ALL MY CHESSES CLEAR!\n";
-			}
-			for (int i = 0; i < MAX_CHESS; i++)
-			{
-				memset(myChesses[i].jump, 0, sizeof(myChesses[i].jump));
-				myChesses[i].maxJumpStep = 0;
-				myChesses[i].maxJumpNum = 0;
-				myChesses[i].isJump = false;
-			}
-			break;
-		case 2:
-			if (DEBUG_MODE)
-			{
-				cout << "DEBUG: ALL ENEMY CHESSES CLEAR!\n";
-			}
-			for (int i = 0; i < MAX_CHESS; i++)
-			{
-				memset(enemyChesses[i].jump, 0, sizeof(enemyChesses[i].jump));
-				enemyChesses[i].maxJumpStep = 0;
-				enemyChesses[i].maxJumpNum = 0;
-				enemyChesses[i].isJump = false;
-			}
-			break;
-		default:
-			cout << "DEBUG: CLEAR ERROR!\n";
-			break;
-	}
+	;
 }
 //清空上一个棋子的走法
 void clearOneChessStep(Chess& chess)
@@ -574,16 +527,10 @@ vector< Command > searchStep(int x, int y, int& maxStep, bool& isJump, char boar
 	return cmds;
 }
 
-//对每一己方合法走法进行搜索(暂时先搜一层）,返回收益id值,还应该返回收益值（暂时无）
+//对每一己方合法走法进行搜索(暂时先搜一层）,返回收益id值,还应该返回收益值
 int searchNextLevel(int level, int& thisLevelScore, int nodeId)
 {
 	level++;
-
-	if (level > MAX_SEARCH_LEVEL - 1)
-	{
-		thisLevelScore = 0;
-		return 0;
-	}
 
 	int curFlag;
 	/* 第二层 */
@@ -597,7 +544,7 @@ int searchNextLevel(int level, int& thisLevelScore, int nodeId)
 		curFlag = (3 - me);
 	}
 
-	if (!SUBMIT_MODE)
+	if (0)
 	{
 		cout << "DEBUG:\nDEBUG: Now Search LEVEL= " << level << endl;
 	}
@@ -606,15 +553,6 @@ int searchNextLevel(int level, int& thisLevelScore, int nodeId)
 	int bestStepID = 0;
 	int bestScore;
 
-	if (curFlag == BLACK_FLAG)
-	{
-		bestScore = 100;
-	}
-	else
-	{
-		bestScore = -100;
-	}
-
 	bool isJump = true;
 	/* 对每一合法步骤判断 */
 	//for (int i = 0; i < legalCommand[level].count; i++)
@@ -622,7 +560,8 @@ int searchNextLevel(int level, int& thisLevelScore, int nodeId)
 	{
 		clearLevelSearch(level);
 		initNextBoard(level, nodeId);
-		if (!SUBMIT_MODE)
+
+		if (!SUBMIT_MODE && CMD_MODE)
 		{
 			cout << "DEBUG: Search cmd: PLACE " << legalCommands[level - 1][i].cmd.numStep;
 			for (int j = 0; j < legalCommands[level - 1][i].cmd.numStep; j++)
@@ -633,17 +572,21 @@ int searchNextLevel(int level, int& thisLevelScore, int nodeId)
 		}
 
 		/* 初始化 */
-		//initNextLevel(legalCommand[level].chessID[i], legalCommand[level].legalCommand[i]);
 		initNextLevel(level, i, legalCommands[level - 1][i].cmd);
 
 		Command cmd;
 		bool isEnd = false;
-		//int curScore = aiTurn(enemyChesses, firstStepBoard[legalCommand[level].chessID[i]], curFlag, cmd);	//暂时先这么写
-		int curScore = aiTurn(level, stepBoard[level][i], curFlag, cmd, isEnd);
+		/* 下一步棋,存储合法步骤 */
+		aiTurn(level, stepBoard[level][i], curFlag, cmd, isEnd);
 
-		if (!SUBMIT_MODE)
+		//if (!isEnd && i == 0)
+		//{
+		//	//bestScore = curScore;
+		//	bestScore = legalCommands[level+1][0].score;
+		//}
+
+		if (!SUBMIT_MODE && CMD_MODE)
 		{
-			cout << "DEBUG: Judged level= " << level << ",flag= " << curFlag << ", Num= " << i << ", score= " << curScore << endl;
 			cout << "DEBUG: OPP cmd: PLACE " << cmd.numStep;
 			for (int i = 0; i < cmd.numStep; i++)
 			{
@@ -652,52 +595,248 @@ int searchNextLevel(int level, int& thisLevelScore, int nodeId)
 			cout << endl;
 		}
 
-		if (!isEnd)
+		int nextScore;
+		/* 当该棋有下一步 且 层数未达最深层 */
+		if (!isEnd && level != MAX_SEARCH_LEVEL - 1)
 		{
-			int nextScore;
-			if (level <= MAX_SEARCH_LEVEL - 1)
+			/* 继续往下搜索 */
+			if (legalCommands[level].size() != 0)
 			{
 				searchNextLevel(level, nextScore, i);	//返回下一层的最优分数
+
+				if (!SUBMIT_MODE)
+				{
+					cout << "DEBUG: level= " << level << " NextlevelScore " << nextScore << endl;
+				}
 				//cout << "DEBUG: NextLevelScore= " << nextScore << endl;
-			}
 
-			/* 最大最小值算法，不知道有没有写反 */
-			if (level % 2 == 0)
-			{
-				curScore = max(curScore, nextScore);
+				/* 最大最小值算法，不知道有没有写反 */
 
+				if (i == 0)
+				{
+					bestScore = nextScore;
+					if (!SUBMIT_MODE)
+					{
+						cout << "DEBUG: level= " << level << " init1bestScore " << bestScore << endl;
+					}
+				}
+				else if (me == BLACK_FLAG)	//黑棋最终要求最大
+				{
+					if (level % 2 == 0)	//偶数层分数最优为最小
+					{
+						bestScore = min(nextScore, bestScore);
+						if (!SUBMIT_MODE)
+						{
+							cout << "DEBUG: level= " << level << " minbestScore " << bestScore << endl;
+						}
+					}
+					else
+					{
+						bestScore = max(nextScore, bestScore);
+						if (!SUBMIT_MODE)
+						{
+							cout << "DEBUG: level= " << level << " maxbestScore " << bestScore << endl;
+						}
+					}
+				}
+				else if (me == WHITE_FLAG)
+				{
+					if (level % 2 == 0)	//相反
+					{
+						bestScore = max(nextScore, bestScore);
+						if (!SUBMIT_MODE)
+						{
+							cout << "DEBUG: level= " << level << " maxbestScore " << bestScore << endl;
+						}
+					}
+					else
+					{
+						bestScore = min(nextScore, bestScore);
+						if (!SUBMIT_MODE)
+						{
+							cout << "DEBUG: level= " << level << " minbestScore " << bestScore << endl;
+						}
+					}
+				}
+
+				if (nextScore == bestScore)
+				{
+					bestStepID = i;
+				}
 			}
 			else
 			{
-				curScore = min(curScore, nextScore);
+				for (int k = 0; k < legalCommands[level - 1].size(); k++)
+				{
+					if (k == 0)
+					{
+						bestScore = legalCommands[level - 1][k].score;
+					}
+					else if (me == BLACK_FLAG)	//黑棋最终要求最大
+					{
+						if (level % 2 == 0)	//偶数层分数最优为最小
+						{
+							bestScore = min(legalCommands[level - 1][k].score, bestScore);
+						}
+						else
+						{
+							bestScore = max(legalCommands[level - 1][k].score, bestScore);
+						}
+					}
+					else if (me == WHITE_FLAG)
+					{
+						if (level % 2 == 0)	//相反
+						{
+							bestScore = max(legalCommands[level - 1][k].score, bestScore);
+						}
+						else
+						{
+							bestScore = min(legalCommands[level - 1][k].score, bestScore);
+						}
+					}
+				}
 			}
+
 		}
+		/* 如果层数到达最深 */
+		else if (!isEnd)
+		{
+			if (!SUBMIT_MODE && level <= MAX_SHOW_LEVEL)
+			{
+				for (int j = 0; j < legalCommands[level].size(); j++)
+				{
+					cout << "DEBUG: Judged level= " << level << ",flag= " << curFlag << ", this= " << j << " up= " << i << " score = " << legalCommands[level][j].score << endl;
+				}
+			}
+			/* 否则返回该层分数的最优值 */
+
+			/* i=0特判 */
+			if (i == 0)
+			{
+				bestScore = legalCommands[level][0].score;
+				if (!SUBMIT_MODE && level <= MAX_SHOW_LEVEL)
+				{
+					cout << "DEBUG: level= " << level << " init2bestScore " << bestScore << endl;
+				}
+				if (me == BLACK_FLAG)	//黑棋最终要求最大
+				{
+					if (level % 2 == 0)	//偶数层分数最优为最小
+					{
+						for (int j = 0; j < legalCommands[level].size(); j++)
+						{
+							bestScore = min(legalCommands[level][j].score, bestScore);
+							if (!SUBMIT_MODE && level <= MAX_SHOW_LEVEL)
+							{
+								cout << "DEBUG: level= " << level << " min2bestScore " << bestScore << endl;
+							}
+						}
+					}
+					else
+					{
+						for (int j = 0; j < legalCommands[level].size(); j++)
+						{
+							bestScore = max(legalCommands[level][j].score, bestScore);
+							if (!SUBMIT_MODE && level <= MAX_SHOW_LEVEL)
+							{
+								cout << "DEBUG: level= " << level << " max2bestScore " << bestScore << endl;
+							}
+						}
+					}
+				}
+				else if (me == WHITE_FLAG)
+				{
+					if (level % 2 == 0)	//相反
+					{
+						for (int i = 0; i < legalCommands[level].size(); i++)
+						{
+							bestScore = max(legalCommands[level][i].score, bestScore);
+							if (!SUBMIT_MODE && level <= MAX_SHOW_LEVEL)
+							{
+								cout << "DEBUG: level= " << level << " max2bestScore " << bestScore << endl;
+							}
+						}
+					}
+					else
+					{
+						for (int i = 0; i < legalCommands[level].size(); i++)
+						{
+							bestScore = min(legalCommands[level][i].score, bestScore);
+							if (!SUBMIT_MODE && level <= MAX_SHOW_LEVEL)
+							{
+								cout << "DEBUG: level= " << level << " min2bestScore " << bestScore << endl;
+							}
+						}
+					}
+				}
+			}
+
+			/* 最大最小值算法，不知道有没有写反 */
+			else if (me == BLACK_FLAG)	//黑棋最终要求最大
+			{
+				if (level % 2 == 0)	//偶数层分数最优为最小
+				{
+					for (int j = 0; j < legalCommands[level].size(); j++)
+					{
+						bestScore = min(legalCommands[level][j].score, bestScore);
+						if (!SUBMIT_MODE && level <= MAX_SHOW_LEVEL)
+						{
+							cout << "DEBUG: level= " << level << " min2bestScore " << bestScore << endl;
+						}
+					}
+				}
+				else
+				{
+					for (int j = 0; j < legalCommands[level].size(); j++)
+					{
+						bestScore = max(legalCommands[level][j].score, bestScore);
+						if (!SUBMIT_MODE && level <= MAX_SHOW_LEVEL)
+						{
+							cout << "DEBUG: level= " << level << " max2bestScore " << bestScore << endl;
+						}
+					}
+				}
+			}
+			else if (me == WHITE_FLAG)
+			{
+				if (level % 2 == 0)	//相反
+				{
+					for (int i = 0; i < legalCommands[level].size(); i++)
+					{
+						bestScore = max(legalCommands[level][i].score, bestScore);
+						if (!SUBMIT_MODE && level <= MAX_SHOW_LEVEL)
+						{
+							cout << "DEBUG: level= " << level << " max2bestScore " << bestScore << "id=" << i << endl;
+						}
+					}
+				}
+				else
+				{
+					for (int i = 0; i < legalCommands[level].size(); i++)
+					{
+						bestScore = min(legalCommands[level][i].score, bestScore);
+						if (!SUBMIT_MODE && level <= MAX_SHOW_LEVEL)
+						{
+							cout << "DEBUG: level= " << level << " min2bestScore " << bestScore << "id=" << i << endl;
+						}
+					}
+				}
+			}
+
+			if (!SUBMIT_MODE && level <= MAX_SHOW_LEVEL)
+			{
+				cout << "DEBUG: level= " << level << " bestScore " << bestScore << endl;
+			}
+
+			bestStepID = i;
+		}
+		/* 如果这步棋走不了 */
 		else
 		{
-			bestScore = curScore;
+			bestScore = legalCommands[level - 1][0].score;
 			bestStepID = 0;
 		}
-
-		/* 对于我方，要求最大值 */
-		if (curFlag == BLACK_FLAG)	//我是白方，会要求黑方最小化
-		{
-			if (curScore < bestScore)
-			{
-				bestScore = curScore;
-				bestStepID = i;
-				//cout << "DEBUG: bestStep set to " << cmd.numStep << " by id= " << i << ", score= " << bestScore << endl;
-			}
-		}
-		else
-		{
-			if (curScore > bestScore)
-			{
-				bestScore = curScore;
-				bestStepID = i;
-				//cout << "DEBUG: bestStep set to " << cmd.numStep << " by id= " << i << ", score= " << bestScore << endl;
-			}
-		}
 	}
+
 	thisLevelScore = bestScore;
 	return bestStepID;
 }
@@ -928,14 +1067,9 @@ int aiTurn(int level, char board[BOARD_SIZE][BOARD_SIZE], int curFlag, Command& 
 	int maxStep = 1;
 
 	/* 清空上一次己方棋子存储的走法 */
-	//if (chesses == myChesses)	//暂时先这么判断
 	if (level == 0)
 	{
-		clearChessesStep(1);
-	}
-	else
-	{
-		clearChessesStep(2);
+		clearLevelSearch(level);
 	}
 
 	vector <Command> cmds;//存储未经筛选的每一个子的合法走法
@@ -980,39 +1114,7 @@ int aiTurn(int level, char board[BOARD_SIZE][BOARD_SIZE], int curFlag, Command& 
 		}
 	}
 
-
-	///* 随机落子 */
-	//bool israned[MAX_CHESS] = { false };
-	//bool isAllRaned = false;
-	//while (!isAllRaned)
-	//{
-	//	int ran = rand() % MAX_CHESS;
-	//	/* 如果已经被随机过了		或		被吃了 ，则进行下一次随机*/
-	//	if (israned[ran] == true || myChesses[ran].isEaten == true)
-	//	{
-	//		continue;
-	//	}
-
-	//	/* 标记被随机，准备进行下一次循环 */
-	//	israned[ran] = true;
-
-	//	/* 检测是否已经全部被随机 */
-	//	for (int i = 0; i < MAX_CHESS; i++)
-	//	{
-	//		if (israned[i] == true || myChesses[i].isEaten == true)
-	//		{
-	//			/* 若已经被随机 */
-	//			isAllRaned = true;
-	//		}
-	//		else
-	//		{
-	//			isAllRaned = false;
-	//			break;
-	//		}
-	//	}
-	//}
-
-	/* 检索所有合法走法，并返回第一个（暂时） */
+	/* 检索所有合法走法 */
 	for (int i = 0; i < cmds.size(); i++)
 	{
 		if (cmds[i].numStep > maxStep)
@@ -1020,7 +1122,10 @@ int aiTurn(int level, char board[BOARD_SIZE][BOARD_SIZE], int curFlag, Command& 
 			maxStep = cmds[i].numStep;
 		}
 	}
-
+	if (cmds.size() == 0)
+	{
+		isEnd = true;
+	}
 	for (int i = 0; i < cmds.size(); i++)
 	{
 		if (cmds[i].numStep == maxStep)
@@ -1030,7 +1135,7 @@ int aiTurn(int level, char board[BOARD_SIZE][BOARD_SIZE], int curFlag, Command& 
 		}
 	}
 
-	if (!SUBMIT_MODE)
+	if (!SUBMIT_MODE && CMD_MODE)
 	{
 		for (int i = 0; i < cmds.size(); i++)
 		{
@@ -1049,6 +1154,7 @@ int aiTurn(int level, char board[BOARD_SIZE][BOARD_SIZE], int curFlag, Command& 
 		//LegalCommand& lcmd = legalCommand[0];
 		int score;
 		int id = searchNextLevel(level, score, 0);
+		cout << "DEBUG: id=" << id << endl;
 		//cout << "DEBUG: Search Done!\n";
 		//memcpy(&command, &lcmd.legalCommand[id], sizeof(struct Command));
 		memcpy(&command, &legalCommands[0][id].cmd, sizeof(struct Command));
@@ -1064,110 +1170,6 @@ int aiTurn(int level, char board[BOARD_SIZE][BOARD_SIZE], int curFlag, Command& 
 		cmd = command;
 		return -1;
 	}
-	else if (level % 2 == 0)
-	{
-		//bool isNoMovable = false;	//不可移动标记
-		if (legalCommands[level].size() == 0)
-		{
-			isEnd = true;
-		}
-		if (isEnd)
-		{
-			cmd = command;
-			if (me == WHITE_FLAG)
-			{
-				return -9999;
-			}
-			return 9999;
-		}
-		int bestScore = legalCommands[level][0].score;
-		int bestPos = 0;
-		for (int i = 0; i < legalCommands[level].size(); i++)
-		{
-			if (me == WHITE_FLAG)	//轮到我了,白方需要分数最大
-			{
-				if (bestScore > legalCommands[level][i].score)
-				{
-					bestScore = legalCommands[level][i].score;
-					bestPos = i;
-				}
-			}
-			else
-			{
-				if (bestScore < legalCommands[level][i].score)
-				{
-					bestScore = legalCommands[level][i].score;
-					bestPos = i;
-				}
-			}
-
-		}
-		memcpy(&command, &legalCommands[level][bestPos].cmd, sizeof(struct Command));
-		cmd = command;
-		//cout << "DEBUG: Best Score " << bestScore << endl;
-
-		/* 清空所有棋子走法 */
-		clearChessesStep(0);
-
-		return bestScore;
-	}
-	else if (level % 2 == 1)
-	{
-		//bool isNoMovable = false;	//不可移动标记
-		if (legalCommands[level].size() == 0)
-		{
-			isEnd = true;
-		}
-		if (isEnd)
-		{
-			cmd = command;
-			if (me == WHITE_FLAG)
-			{
-				return 9999;
-			}
-			return -9999;
-		}
-		int bestScore = legalCommands[level][0].score;
-		int bestPos = 0;
-		for (int i = 0; i < legalCommands[level].size(); i++)
-		{
-			////if(level%2 == 1)	//敌方行动，待完善
-			//if (bestScore > lcmd.score[i])
-			//{
-			//	bestScore = lcmd.score[i];
-			//	bestPos = i;
-			//}
-			/* 对于敌方行动，要求最小值 */	//在没有完善α-β算法前暂时先这样反着写.因为第0层之后，第一层的AI会走分数最大的方法
-			if (me == WHITE_FLAG)	//我是白方，敌人黑方会让分数最大化
-			{
-				if (bestScore < legalCommands[level][i].score)
-				{
-					bestScore = legalCommands[level][i].score;
-					bestPos = i;
-				}
-			}
-			else
-			{
-				if (bestScore > legalCommands[level][i].score)
-				{
-					bestScore = legalCommands[level][i].score;
-					bestPos = i;
-				}
-			}
-
-		}
-		memcpy(&command, &legalCommands[level][bestPos].cmd, sizeof(struct Command));
-		cmd = command;
-		//cout << "DEBUG: Best Score " << bestScore << endl;
-
-		/* 清空所有棋子走法 */
-		clearChessesStep(0);
-
-		return bestScore;
-	}
-
-
-
 }
 
 //1黑2白
@@ -1361,3 +1363,7 @@ function minimax(node, depth, a, b)
 //		return a;
 //	}
 //}
+
+/* level 0 找level 1 中的最大值
+*		1			2	最小值
+*/
